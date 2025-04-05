@@ -4,7 +4,7 @@ Downloads tomorrow's crosswords into a designated LOCAL folder, authenticating w
 ## Instructions:
 1. Fork
 2. Save cookies.txt. "Get cookies.txt LOCALLY" in Chrome is one way to do this. 
-3. Create path.txt with the destination path (eg /home/username/googledrive/Supernote/Documents/crosswords/ ... or any other service
+3. Create path.txt with the destination path (eg /home/username/googledrive/Supernote/Documents/crosswords/
 4. ...
 5. Profit?
 
