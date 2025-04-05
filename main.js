@@ -1,14 +1,24 @@
-const dropbox = require('dropbox');
+const fs = require('fs');
 const https = require('https');
 const moment = require('moment');
 const path = require('path');
 const process = require('process');
 
-const dbx = new dropbox.Dropbox({
-  clientId: process.env.DROPBOX_APP_KEY,
-  clientSecret: process.env.DROPBOX_APP_SECRET,
-  refreshToken: process.env.DROPBOX_REFRESH_TOKEN,
-});
+// Read save path from path.txt
+const savePath = fs.readFileSync('path.txt', 'utf8').trim();
+
+// Parse cookies.txt (Netscape format)
+function loadCookies(domain) {
+  const lines = fs.readFileSync('cookies.txt', 'utf8').split('\n');
+  const cookies = lines
+    .filter(line => !line.startsWith('#') && line.trim() !== '')
+    .map(line => line.split('\t'))
+    .filter(parts => parts.length >= 7 && parts[0].includes(domain))
+    .map(parts => `${parts[5]}=${parts[6]}`);
+  return cookies.join('; ');
+}
+
+const nytCookies = loadCookies('nytimes.com');
 
 function getNYTC(date) {
   return new Promise((resolve, reject) => {
@@ -19,27 +29,19 @@ function getNYTC(date) {
       method: 'GET',
       headers: {
         Referer: 'https://www.nytimes.com/crosswords/archive/daily',
-        Cookie: process.env.NYT_COOKIE,
+        Cookie: nytCookies,
       },
     }, (res) => {
       if (res.statusCode === 200) {
         const data = [];
-        res.on('error', (err) => {
-          reject(err);
-        });
-        res.on('data', (chunk) => {
-          data.push(chunk);
-        });
-        res.on('end', () => {
-          resolve(Buffer.concat(data));
-        });
+        res.on('error', (err) => reject(err));
+        res.on('data', (chunk) => data.push(chunk));
+        res.on('end', () => resolve(Buffer.concat(data)));
       } else {
-        reject(res.statusCode);
+        reject(`HTTP ${res.statusCode}`);
       }
     });
-    req.on('error', (err) => {
-      reject(err);
-    });
+    req.on('error', (err) => reject(err));
     req.end();
   });
 }
@@ -50,12 +52,13 @@ async function nytc(date) {
     await getNYTC(date);
     console.log(`Successfully checked ${moment(date).format('YYYY-MM-DD')}'s crossword.`);
   } catch (error) {
-    console.log(`NYT_COOKIE likely expired. Error: ${error}`);
+    console.log(`NYT cookie likely expired or invalid. Error: ${error}`);
     process.exit(1);
   }
+
   date.setDate(date.getDate() + 1);
   console.log(`Downloading ${moment(date).format('YYYY-MM-DD')}'s crossword.`);
-  data = undefined;
+  let data;
   try {
     data = await getNYTC(date);
     console.log(`Successfully downloaded ${moment(date).format('YYYY-MM-DD')}'s crossword.`);
@@ -63,28 +66,18 @@ async function nytc(date) {
     console.log(`${moment(date).format('YYYY-MM-DD')}'s crossword is not yet released.`);
     return;
   }
-  console.log(`Checking if file exists.`);
-  try {
-    await dbx.filesGetMetadata({
-      path: path.join(process.env.DROPBOX_NYTC_PATH, `${moment(date).format('YYYY-MM-DD-ddd')}-crossword.pdf`),
-    });
-    console.log(`File already uploaded.`);
+
+  const filename = `${moment(date).format('YYYY-MM-DD-ddd')}-crossword.pdf`;
+  const filePath = path.join(savePath, filename);
+
+  if (fs.existsSync(filePath)) {
+    console.log(`File already exists.`);
     return;
-  } catch (error) {
-    console.log(`File not yet uploaded.`);
   }
-  console.log(`Uploading file.`);
-  try {
-    response = await dbx.filesUpload({
-      path: path.join(process.env.DROPBOX_NYTC_PATH, `${moment(date).format('YYYY-MM-DD-ddd')}-crossword.pdf`),
-      contents: data,
-    });
-    console.log(`Successfully uploaded ${response.result.content_hash}.`);
-    return;
-  } catch (error) {
-    console.log(`DROPBOX_REFRESH_TOKEN likely invalid. Error: ${error}`);
-    process.exit(1);
-  }
+
+  console.log(`Saving file locally.`);
+  fs.writeFileSync(filePath, data);
+  console.log(`Successfully saved ${filename}.`);
 }
 
 function getWSJC(date) {
@@ -97,22 +90,14 @@ function getWSJC(date) {
     }, (res) => {
       if (res.statusCode === 200) {
         const data = [];
-        res.on('error', (err) => {
-          reject(err);
-        });
-        res.on('data', (chunk) => {
-          data.push(chunk);
-        });
-        res.on('end', () => {
-          resolve(Buffer.concat(data));
-        });
+        res.on('error', (err) => reject(err));
+        res.on('data', (chunk) => data.push(chunk));
+        res.on('end', () => resolve(Buffer.concat(data)));
       } else {
-        reject(res.statusCode);
+        reject(`HTTP ${res.statusCode}`);
       }
     });
-    req.on('error', (err) => {
-      reject(err);
-    });
+    req.on('error', (err) => reject(err));
     req.end();
   });
 }
@@ -120,7 +105,7 @@ function getWSJC(date) {
 async function wsjc(date) {
   date.setDate(date.getDate() + 1);
   console.log(`Downloading ${moment(date).format('YYYY-MM-DD')}'s crossword.`);
-  data = undefined;
+  let data;
   try {
     data = await getWSJC(date);
     console.log(`Successfully downloaded ${moment(date).format('YYYY-MM-DD')}'s crossword.`);
@@ -128,28 +113,18 @@ async function wsjc(date) {
     console.log(`${moment(date).format('YYYY-MM-DD')}'s crossword is not yet released.`);
     return;
   }
-  console.log(`Checking if file exists.`);
-  try {
-    await dbx.filesGetMetadata({
-      path: path.join(process.env.DROPBOX_WSJC_PATH, `${moment(date).format('YYYY-MM-DD-ddd')}-crossword.pdf`),
-    });
-    console.log(`File already uploaded.`);
+
+  const filename = `${moment(date).format('YYYY-MM-DD-ddd')}-crossword.pdf`;
+  const filePath = path.join(savePath, filename);
+
+  if (fs.existsSync(filePath)) {
+    console.log(`File already exists.`);
     return;
-  } catch (error) {
-    console.log(`File not yet uploaded.`);
   }
-  console.log(`Uploading file.`);
-  try {
-    response = await dbx.filesUpload({
-      path: path.join(process.env.DROPBOX_WSJC_PATH, `${moment(date).format('YYYY-MM-DD-ddd')}-crossword.pdf`),
-      contents: data,
-    });
-    console.log(`Successfully uploaded ${response.result.content_hash}.`);
-    return;
-  } catch (error) {
-    console.log(`DROPBOX_ACCESS_TOKEN likely expired. Error: ${error}`);
-    process.exit(1);
-  }
+
+  console.log(`Saving file locally.`);
+  fs.writeFileSync(filePath, data);
+  console.log(`Successfully saved ${filename}.`);
 }
 
 async function download(date) {
@@ -168,3 +143,4 @@ async function main() {
 }
 
 main().then(() => process.exit(0));
+
