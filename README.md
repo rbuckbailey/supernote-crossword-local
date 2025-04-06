@@ -1,16 +1,13 @@
 # supernote-crossword
-Downloads tomorrow's crosswords into a designated Dropbox folder.
+Downloads tomorrow's crosswords into a designated LOCAL folder, authenticating with cookies from a Netscape-format COOKIES.TXT - and let whatever file sync service you have running handle that part of things.
 
 ## Instructions:
 1. Fork
-2. Setup secrets:
-    1. Set DROPBOX_APP_KEY, DROPBOX_APP_SECRET, and DROPBOX_REFRESH_TOKEN based on the [instructions](https://www.nathanbuchar.com/how-to-automatically-upload-daily-nyt-crossword-dropbox-2023#step-2%3A-generate-a-dropbox-refresh-token).
-    2. Set NYT_COOKIE by using DevTools to read all cookies from a logged in browser ([document.cookie](https://www.nathanbuchar.com/how-to-automatically-upload-daily-nyt-crossword-dropbox-2023#step-3%3A-obtain-your-nyt-cookie) is not sufficient as some cookies are [HttpOnly](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#httponly)).
-    3. Set DROPBOX_NYTC_PATH and DROPBOX_WSJC_PATH based on your own preferences.
-3. Profit!
+2. Save cookies.txt. "Get cookies.txt LOCALLY" in Chrome is one way to do this. 
+3. Create path.txt with the destination path (eg /home/username/googledrive/Supernote/Documents/crosswords/
+4. ...
+5. Profit?
 
 ## Credit:
+Adapted from https://github.com/arichiv/supernote-crossword which was 
 Adapted from https://nathanbuchar.com/automatically-uploading-the-nyt-crossword-supernote/
-
-## Status:
-[![cron](https://github.com/arichiv/supernote-crossword/actions/workflows/cron.yml/badge.svg)](https://github.com/arichiv/supernote-crossword/actions/workflows/cron.yml)
